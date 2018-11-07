@@ -53,7 +53,7 @@ const int QTR_THRESHOLD = 1900; // time in microseconds
 const int REVERSE_SPEED = 400; // Wheel speed when reversing
 const int TURN_SPEED = 350;    // Wheel speed when turning
 const int FORWARD_SPEED = 300; // Wheel speed when driving forward
-const int SEARCH_SPEED = 200;  // Wheel speed when searching
+const int SEARCH_SPEED = 280;  // Wheel speed when searching
 const int MAX_SPEED = 400;     // Max speed
 
 // DURATIONS
@@ -72,7 +72,7 @@ const int FRONT_IR_SENSOR = A0;
 // TIMERS
 unsigned long frontSensorTimeout;
 unsigned long searchSequenceTimeout;
-unsigned long chargingTimeout;
+unsigned long noDetectionTimeout;
 
 // REFLECTION SENSOR ARRAY
 const unsigned char NUMBER_OF_SENSORS = 2;                        // How many sensors we are using
@@ -91,6 +91,13 @@ Pushbutton button(ZUMO_BUTTON); // default Zumo Button - pin 12
 const int LATCH_PIN = 6;
 const int CLOCK_PIN = 2;
 const int DATA_PIN = 11;
+
+enum TURN_DIRECTION
+{
+  RANDOM_DIRECTION,
+  LEFT_DIRECTION,
+  RIGHT_DIRECTION
+} turnDirection;
 
 // Sensor trigger states
 enum TRIGGERED_SENSOR
@@ -165,6 +172,7 @@ void driveLeftBackwards(int reverseSpeed)
 */
 void turnLeft(int turnSpeed)
 {
+  turnDirection = LEFT_DIRECTION;
   motors.setSpeeds(-turnSpeed, turnSpeed);
 }
 
@@ -175,6 +183,7 @@ void turnLeft(int turnSpeed)
 */
 void turnRight(int turnSpeed)
 {
+  turnDirection = RIGHT_DIRECTION;
   motors.setSpeeds(turnSpeed, -turnSpeed);
 }
 
@@ -259,11 +268,22 @@ void runEdgeEscapeSequence()
 /*
   Turns the Zumo rendomly right or left at speed set by SEARCH_SPEED
 */
-void runSearchSequence()
+void runSearchSequence(int speed, TURN_DIRECTION direction)
 {
-  int rnd = random(0, 50);
+  int rnd = random(0, 2);
   Serial.println("SEARCH");
-  (rnd > 25) ? turnLeft(SEARCH_SPEED) : turnRight(SEARCH_SPEED);
+  switch (direction)
+  {
+  case LEFT_DIRECTION:
+    turnLeft(speed);
+    break;
+  case RIGHT_DIRECTION:
+    turnRight(speed);
+    break;
+  case RANDOM_DIRECTION:
+    (rnd > 1) ? turnLeft(speed) : turnRight(speed);
+    break;
+  }
 }
 
 /*
@@ -360,6 +380,19 @@ bool enemyInSight()
   return charge;
 }
 
+void lockTarget(int speed, TURN_DIRECTION wasTurningDirection)
+{
+  switch (wasTurningDirection)
+  {
+  case LEFT_DIRECTION:
+    turnRight(speed);
+    break;
+  case RIGHT_DIRECTION:
+    turnLeft(speed);
+    break;
+  }
+}
+
 /*
   Shift bits into the shift registers
 
@@ -416,21 +449,6 @@ void waitForButtonAndCountDown()
   changeOperationState(S_SEARCHING);
 }
 
-void setup()
-{
-  Serial.begin(9600);
-
-  triggeredSensor = NONE;         // Set initial triggered sensor
-  currentOperationState = S_IDLE; // Sets initial state
-  pinMode(LED_PIN, HIGH);         // Turn signal LED on
-
-  randomSeed(analogRead(0)); // Make sure our random seed is different each time we run
-
-  pinMode(LATCH_PIN, OUTPUT);
-  pinMode(DATA_PIN, OUTPUT);
-  pinMode(CLOCK_PIN, OUTPUT);
-}
-
 void readSerial()
 {
   int incomingByte = 0;
@@ -471,8 +489,31 @@ void readSerial()
   }
 }
 
+////////////////////////////////////////////////////////
+
+void setup()
+{
+  Serial.begin(9600);
+
+  triggeredSensor = NONE;         // Set initial triggered sensor
+  currentOperationState = S_IDLE; // Sets initial state
+  pinMode(LED_PIN, HIGH);         // Turn signal LED on
+
+  randomSeed(analogRead(0)); // Make sure our random seed is different each time we run
+
+  pinMode(LATCH_PIN, OUTPUT);
+  pinMode(DATA_PIN, OUTPUT);
+  pinMode(CLOCK_PIN, OUTPUT);
+
+  // Initiate the Wire library and join the I2C bus as a master
+  Wire.begin();
+}
+
 void loop()
 {
+  // loop_start_time = millis();
+  // lsm303.readAcceleration(loop_start_time);
+
   if (button.isPressed())
   {
     changeOperationState(S_IDLE);
@@ -502,23 +543,34 @@ void loop()
     edgeDetect(); // CHECK IF ZUMO IS ON EDGE
     if (isOperationStateChanged())
     {
+      setTimeout(&noDetectionTimeout, 2500);
       setTimeout(&searchSequenceTimeout, 0);
       setLastOperationState(S_SEARCHING);
-    }
-    if (timerTimedOut(searchSequenceTimeout))
-    {
-      runSearchSequence();
-      setTimeout(&searchSequenceTimeout, 1000);
     }
 
     if (timerTimedOut(frontSensorTimeout))
     {
       if (enemyInSight())
       {
+        lockTarget(300, turnDirection);
+        delay(60);
         driveForward(MAX_SPEED);
         changeOperationState(S_CHARGING);
       }
       setTimeout(&frontSensorTimeout, 40);
+    }
+
+    if (timerTimedOut(searchSequenceTimeout))
+    {
+      runSearchSequence(SEARCH_SPEED, RANDOM_DIRECTION);
+      setTimeout(&searchSequenceTimeout, 1000);
+    }
+
+    if (timerTimedOut(noDetectionTimeout))
+    {
+      driveForward(300);
+      delay(300);
+      setTimeout(&noDetectionTimeout, 2500);
     }
 
     break;
@@ -527,31 +579,20 @@ void loop()
     // Serial.println("CHARGE");
     if (isOperationStateChanged())
     {
-      // setTimeout(&chargingTimeout, 3500);
+      setTimeout(&frontSensorTimeout, 300);
       driveForward(MAX_SPEED);
       setLastOperationState(S_CHARGING);
     }
-
-    // if (!enemyInSight())
-    // {
-    //   changeOperationState(S_SEARCHING);
-    // }
 
     if (timerTimedOut(frontSensorTimeout))
     {
       if (!enemyInSight())
       {
+        runSearchSequence(340, turnDirection);
+        setTimeout(&searchSequenceTimeout, 1000);
         changeOperationState(S_SEARCHING);
       }
       setTimeout(&frontSensorTimeout, 50);
     }
-
-    break;
-  case S_COLLIDING:
-    // TODO
-    // LAGE COLLISION DETEKSJON
-    break;
-  case S_BACKING:
-    break;
   }
 }
