@@ -73,6 +73,7 @@ const int FRONT_IR_SENSOR = A0;
 unsigned long frontSensorTimeout;
 unsigned long searchSequenceTimeout;
 unsigned long noDetectionTimeout;
+unsigned long movingTimeout;
 
 // REFLECTION SENSOR ARRAY
 const unsigned char NUMBER_OF_SENSORS = 2;                        // How many sensors we are using
@@ -123,13 +124,9 @@ enum STATES
   */
   S_CHARGING,
   /*
-    When zumo has detected collison
+    When zumo moves forward
   */
-  S_COLLIDING,
-  /*
-    When Zumo is backing up
-  */
-  S_BACKING
+  S_MOVING,
 } currentOperationState;
 STATES lastOperationState; // Holds last operation state
 
@@ -313,7 +310,7 @@ void setLastOperationState(STATES lastState)
 
   @Param newState the new state to change to
 */
-void changeOperationState(STATES newState)
+void setOperationState(STATES newState)
 {
   setLastOperationState(currentOperationState);
   currentOperationState = newState;
@@ -362,7 +359,8 @@ bool timerTimedOut(unsigned long timer)
 
 /*
   Check if we have enemy in sight
-  by the distance on the IR sensor
+  by getting the distance on the IR sensor
+  and compare it to a limit
 
   @Return bool true if enemy is in sight
 */
@@ -371,6 +369,7 @@ bool enemyInSight()
   bool charge = false;
 
   int irDistance = getIRDistance(FRONT_IR_SENSOR);
+
   Serial.println(irDistance);
   if (irDistance <= MAX_CHARGE_DISTANCE)
   {
@@ -380,7 +379,7 @@ bool enemyInSight()
   return charge;
 }
 
-void lockTarget(int speed, TURN_DIRECTION wasTurningDirection)
+void lockTarget(int speed, TURN_DIRECTION wasTurningDirection, int duration = 100)
 {
   switch (wasTurningDirection)
   {
@@ -431,9 +430,12 @@ void shift(double power, bool single = false)
 }
 
 /*
+  Waits for start button press and
+  then runs a count down sequence
+  before changing state to S_SEARCHING
 
 */
-void waitForButtonAndCountDown()
+void waitForStartButtonAndCountDown()
 {
   digitalWrite(LED_PIN, HIGH);
   button.waitForButton();
@@ -446,9 +448,12 @@ void waitForButtonAndCountDown()
   }
   // shift(10);
   buzzer.playNote(NOTE_C(5), 1000, 20);
-  changeOperationState(S_SEARCHING);
 }
 
+/*
+  Reads serial for incomming commands.
+
+*/
 void readSerial()
 {
   int incomingByte = 0;
@@ -460,26 +465,26 @@ void readSerial()
     switch (incomingByte)
     {
     case 114: // R
-      changeOperationState(S_SEARCHING);
+      setOperationState(S_SEARCHING);
       break;
     case 113: // Q
       stopMotors();
-      changeOperationState(S_IDLE);
+      setOperationState(S_IDLE);
       break;
     case 119: // W
-      changeOperationState(S_IDLE);
+      setOperationState(S_IDLE);
       driveForward(150);
       break;
     case 97: // A
-      changeOperationState(S_IDLE);
+      setOperationState(S_IDLE);
       turnLeft(150);
       break;
     case 115: // S
-      changeOperationState(S_IDLE);
+      setOperationState(S_IDLE);
       driveBackwards(150);
       break;
     case 100: // D
-      changeOperationState(S_IDLE);
+      setOperationState(S_IDLE);
       turnRight(150);
       break;
     }
@@ -504,22 +509,17 @@ void setup()
   pinMode(LATCH_PIN, OUTPUT);
   pinMode(DATA_PIN, OUTPUT);
   pinMode(CLOCK_PIN, OUTPUT);
-
-  // Initiate the Wire library and join the I2C bus as a master
-  Wire.begin();
 }
 
 void loop()
 {
-  // loop_start_time = millis();
-  // lsm303.readAcceleration(loop_start_time);
 
   if (button.isPressed())
   {
-    changeOperationState(S_IDLE);
+    setOperationState(S_IDLE);
   }
 
-  // HUSK Å TA DENNE AV NÅR VI SKAL TIL KAMP KONKURANSE!!!!!
+  // HUSK Å TA DENNE AV PÅ TOPPEN NÅR VI SKAL TIL KAMP / KONKURANSE!!!!!
   if (DEBUG_REMOTE)
   {
     readSerial();
@@ -535,8 +535,8 @@ void loop()
     {
       stopMotors();
       button.waitForRelease();
-      waitForButtonAndCountDown();
-      changeOperationState(S_SEARCHING);
+      waitForStartButtonAndCountDown();
+      setOperationState(S_SEARCHING);
     }
     break;
   case S_SEARCHING:
@@ -552,10 +552,9 @@ void loop()
     {
       if (enemyInSight())
       {
-        lockTarget(300, turnDirection);
-        delay(60);
+        lockTarget(300, turnDirection, 60);
         driveForward(MAX_SPEED);
-        changeOperationState(S_CHARGING);
+        setOperationState(S_CHARGING);
       }
       setTimeout(&frontSensorTimeout, 40);
     }
@@ -568,11 +567,30 @@ void loop()
 
     if (timerTimedOut(noDetectionTimeout))
     {
+      setOperationState(S_MOVING);
       driveForward(300);
-      delay(300);
-      setTimeout(&noDetectionTimeout, 2500);
+      setTimeout(&movingTimeout, 300);
     }
 
+    break;
+  case S_MOVING:
+    edgeDetect();
+
+    if (timerTimedOut(movingTimeout))
+    {
+      setOperationState(S_SEARCHING);
+    }
+
+    if (timerTimedOut(frontSensorTimeout))
+    {
+      if (enemyInSight())
+      {
+        lockTarget(300, turnDirection, 60);
+        driveForward(MAX_SPEED);
+        setOperationState(S_CHARGING);
+      }
+      setTimeout(&frontSensorTimeout, 40);
+    }
     break;
   case S_CHARGING:
     edgeDetect(); // CHECK IF ZUMO IS ON EDGE
@@ -590,9 +608,10 @@ void loop()
       {
         runSearchSequence(340, turnDirection);
         setTimeout(&searchSequenceTimeout, 1000);
-        changeOperationState(S_SEARCHING);
+        setOperationState(S_SEARCHING);
       }
       setTimeout(&frontSensorTimeout, 50);
     }
+    break;
   }
 }
