@@ -52,7 +52,7 @@ const int DEBUGGING = true;
 // SPEEDS 0(min) - 400(max)
 const int REVERSE_SPEED = 400; // Wheel speed when reversing : Default 400
 const int TURN_SPEED = 350;    // Wheel speed when turning : Default 350
-const int FORWARD_SPEED = 200; // Wheel speed when driving forward : Default 300
+const int FORWARD_SPEED = 300; // Wheel speed when driving forward : Default 300
 const int SEARCH_SPEED = 300;  // Wheel speed when searching : Defaulr 280
 const int MAX_SPEED = 400;     // Max speed : Default 400
 
@@ -397,8 +397,6 @@ void runEdgeEscapeSequence()
   }
   delay(TURN_DURATION);
   driveForward(MAX_SPEED);
-  setOperationState(S_DRIVING);
-  setTimeout(&drivingTimer, 350);
   triggeredReflectSensor = NONE;
 }
 
@@ -411,6 +409,8 @@ void borderDetect()
   if (isOnEdge())
   {
     runEdgeEscapeSequence();
+    setOperationState(S_DRIVING);
+    setTimeout(&drivingTimer, 350);
   }
 }
 
@@ -463,6 +463,7 @@ void lockTarget(int speed, TURN_DIRECTION wasTurningDirection, int turnDuration 
 /*
   Waits for start button press and
   then runs a count down sequence
+  with sound
 
   @Param seconds how many seconds we should count down for
 */
@@ -598,7 +599,7 @@ void loop()
     if (timerTimedOut(noEnemyDetectionTimer))
     {
       setOperationState(S_DRIVING);
-      driveForward(300);
+      driveForward(FORWARD_SPEED);
       setTimeout(&drivingTimer, 300);
     }
 
