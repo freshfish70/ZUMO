@@ -425,7 +425,6 @@ bool IsEnemyInSight()
 {
   bool charge = false;
 
-  // int irDistance = getIRDistance(FRONT_IR_SENSOR);
   int distance = getUltrasonicMessuredDistance(ULTRASONIC_TRIGGER_PIN, ULTRASONIC_ECHO_PIN);
 
   Serial.println(distance);
