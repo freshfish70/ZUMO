@@ -151,7 +151,7 @@ enum STATES
   /*
     When zumo moves forward
   */
-  S_MOVING,
+  S_DRIVING,
 } currentOperationState;
 STATES lastOperationState; // Holds last operation state
 
@@ -395,10 +395,9 @@ void runEdgeEscapeSequence()
     turn(TURN_SPEED, LEFT_DIRECTION);
     break;
   }
-
   delay(TURN_DURATION);
   driveForward(MAX_SPEED);
-  setOperationState(S_MOVING);
+  setOperationState(S_DRIVING);
   setTimeout(&movingTimeout, 350);
   triggeredReflectSensor = NONE;
 }
@@ -422,7 +421,7 @@ void borderDetect()
 
   @Return bool true if enemy is in sight
 */
-bool enemyInSight()
+bool IsEnemyInSight()
 {
   bool charge = false;
 
@@ -535,7 +534,8 @@ void setup()
 
   triggeredReflectSensor = NONE;  // Set initial triggered sensor
   currentOperationState = S_IDLE; // Sets initial state
-  pinMode(LED_PIN, HIGH);         // Turn signal LED on
+
+  pinMode(LED_PIN, OUTPUT);
 
   randomSeed(analogRead(0)); // Make sure our random seed is different each time we run
 
@@ -583,7 +583,7 @@ void loop()
 
     if (timerTimedOut(frontSensorTimeout))
     {
-      if (enemyInSight())
+      if (IsEnemyInSight())
       {
         // lockTarget(300, turningDirection, 40);
         driveForward(MAX_SPEED);
@@ -600,13 +600,13 @@ void loop()
 
     if (timerTimedOut(noDetectionTimeout))
     {
-      setOperationState(S_MOVING);
+      setOperationState(S_DRIVING);
       driveForward(300);
       setTimeout(&movingTimeout, 300);
     }
 
     break;
-  case S_MOVING:
+  case S_DRIVING:
 
     if (timerTimedOut(movingTimeout))
     {
@@ -615,7 +615,7 @@ void loop()
 
     if (timerTimedOut(frontSensorTimeout))
     {
-      if (enemyInSight())
+      if (IsEnemyInSight())
       {
         // lockTarget(300, turningDirection, 40);
         driveForward(MAX_SPEED);
@@ -638,7 +638,7 @@ void loop()
 
     if (timerTimedOut(frontSensorTimeout))
     {
-      if (!enemyInSight())
+      if (!IsEnemyInSight())
       {
         turn(340, turningDirection);
         setTimeout(&searchSequenceTimeout, 1000);
