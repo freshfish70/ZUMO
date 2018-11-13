@@ -73,10 +73,10 @@ const int LED_PIN = 13; // SIGNAL LED
 const int FRONT_IR_SENSOR = A0;
 
 // TIMERS
-unsigned long frontSensorTimeout;
-unsigned long searchSequenceTimeout;
-unsigned long noDetectionTimeout;
-unsigned long movingTimeout;
+unsigned long frontSensorReadTimer;
+unsigned long searchTimer;
+unsigned long noEnemyDetectionTimer;
+unsigned long drivingTimer;
 
 // REFLECTION SENSOR ARRAY
 const int QTR_THRESHOLD = 1700;                                   // time in microseconds
@@ -398,7 +398,7 @@ void runEdgeEscapeSequence()
   delay(TURN_DURATION);
   driveForward(MAX_SPEED);
   setOperationState(S_DRIVING);
-  setTimeout(&movingTimeout, 350);
+  setTimeout(&drivingTimer, 350);
   triggeredReflectSensor = NONE;
 }
 
@@ -424,10 +424,8 @@ void borderDetect()
 bool IsEnemyInSight()
 {
   bool charge = false;
-
   int distance = getUltrasonicMessuredDistance(ULTRASONIC_TRIGGER_PIN, ULTRASONIC_ECHO_PIN);
 
-  Serial.println(distance);
   if (distance <= MAX_CHARGE_DISTANCE)
   {
     charge = true;
@@ -575,12 +573,12 @@ void loop()
     */
     if (operationStateChanged)
     {
-      setTimeout(&noDetectionTimeout, random(2200, 2700));
-      setTimeout(&searchSequenceTimeout, 0);
+      setTimeout(&noEnemyDetectionTimer, random(2200, 2700));
+      setTimeout(&searchTimer, 0);
       setLastOperationState(S_SEARCHING);
     }
 
-    if (timerTimedOut(frontSensorTimeout))
+    if (timerTimedOut(frontSensorReadTimer))
     {
       if (IsEnemyInSight())
       {
@@ -588,31 +586,31 @@ void loop()
         driveForward(MAX_SPEED);
         setOperationState(S_CHARGING);
       }
-      setTimeout(&frontSensorTimeout, 30);
+      setTimeout(&frontSensorReadTimer, 30);
     }
 
-    if (timerTimedOut(searchSequenceTimeout))
+    if (timerTimedOut(searchTimer))
     {
       turn(SEARCH_SPEED, RANDOM_DIRECTION);
-      setTimeout(&searchSequenceTimeout, 1000);
+      setTimeout(&searchTimer, 1000);
     }
 
-    if (timerTimedOut(noDetectionTimeout))
+    if (timerTimedOut(noEnemyDetectionTimer))
     {
       setOperationState(S_DRIVING);
       driveForward(300);
-      setTimeout(&movingTimeout, 300);
+      setTimeout(&drivingTimer, 300);
     }
 
     break;
   case S_DRIVING:
 
-    if (timerTimedOut(movingTimeout))
+    if (timerTimedOut(drivingTimer))
     {
       setOperationState(S_SEARCHING);
     }
 
-    if (timerTimedOut(frontSensorTimeout))
+    if (timerTimedOut(frontSensorReadTimer))
     {
       if (IsEnemyInSight())
       {
@@ -620,7 +618,7 @@ void loop()
         driveForward(MAX_SPEED);
         setOperationState(S_CHARGING);
       }
-      setTimeout(&frontSensorTimeout, 40);
+      setTimeout(&frontSensorReadTimer, 40);
     }
     break;
   case S_CHARGING:
@@ -630,20 +628,20 @@ void loop()
     */
     if (operationStateChanged)
     {
-      setTimeout(&frontSensorTimeout, 300);
+      setTimeout(&frontSensorReadTimer, 300);
       driveForward(MAX_SPEED);
       setLastOperationState(S_CHARGING);
     }
 
-    if (timerTimedOut(frontSensorTimeout))
+    if (timerTimedOut(frontSensorReadTimer))
     {
       if (!IsEnemyInSight())
       {
         turn(340, turningDirection);
-        setTimeout(&searchSequenceTimeout, 1000);
+        setTimeout(&searchTimer, 1000);
         setOperationState(S_SEARCHING);
       }
-      setTimeout(&frontSensorTimeout, 50);
+      setTimeout(&frontSensorReadTimer, 50);
     }
     break;
   }
