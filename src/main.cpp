@@ -78,11 +78,6 @@ unsigned long searchSequenceTimeout;
 unsigned long noDetectionTimeout;
 unsigned long movingTimeout;
 
-// SHIFT REGISTER
-// const int LATCH_PIN = 6;
-// const int CLOCK_PIN = 2;
-// const int DATA_PIN = 11;
-
 // REFLECTION SENSOR ARRAY
 const int QTR_THRESHOLD = 1700;                                   // time in microseconds
 const unsigned char NUMBER_OF_SENSORS = 2;                        // How many sensors we are using
@@ -220,23 +215,6 @@ void stopMotors()
 void setTriggeredReflectanceSensor(TRIGGERED_SENSOR sensor)
 {
   triggeredReflectSensor = sensor;
-}
-
-/*
-  Converts Sharp GP2Y0A41SK0F IR Sensor read data
-  to distance in CM
-
-  @Param sensorPin the Sharp Ir sensor connected pin
-  @Return int distance in CM
-*/
-int getIRDistance(int sensorPin)
-{
-  float volts = analogRead(sensorPin) * 0.0048828125;
-  int distance = 13 * pow(volts, -1);
-
-  // Null is not a valid distance because it can not detect closer then 5cm
-  // But readouts is not consistant and 0 sometimes occurs
-  return distance != 0 ? distance : 1000;
 }
 
 /*
@@ -487,42 +465,6 @@ void lockTarget(int speed, TURN_DIRECTION wasTurningDirection, int turnDuration 
 }
 
 /*
-  Shift bits into the shift registers
-
-  @Param dataPin the pin that writes the bit data
-  @Param clockPin the pin that triggers the clock for pushing the bit into the shift register
-  @Param birOrder the order of which the bits are written into the shift register
-  @Param value the value you want to shift into the register. number of 2^x
-*/
-void shiftOut(int dataPin, int clockPin, int bitOrder, uint16_t value)
-{
-  uint8_t i;
-
-  for (i = 0; i < 16; i++)
-  {
-    if (bitOrder == LSBFIRST)
-      digitalWrite(dataPin, !!(value & (1 << i)));
-    else
-      digitalWrite(dataPin, !!(value & (1 << (15 - i))));
-
-    digitalWrite(clockPin, HIGH);
-    digitalWrite(clockPin, LOW);
-  }
-}
-
-/*
-  
-*/
-// void shift(double power, bool single = false)
-// {
-//   int minus;
-//   (single == true) ? minus = 0 : minus = 1;
-//   digitalWrite(LATCH_PIN, LOW);
-//   shiftOut(DATA_PIN, CLOCK_PIN, MSBFIRST, pow(2, power) - minus);
-//   digitalWrite(LATCH_PIN, HIGH);
-// }
-
-/*
   Waits for start button press and
   then runs a count down sequence
 
@@ -535,11 +477,9 @@ void waitForStartButtonAndCountDown(int seconds)
   digitalWrite(LED_PIN, LOW);
   for (int i = 0; i < seconds; i++)
   {
-    // shift(2 * (5 - i));
     delay(1000);
     buzzer.playNote(NOTE_C(5), 200, 20);
   }
-  // shift(10);
   // buzzer.playNote(NOTE_C(5), 1000, 20);
 }
 
