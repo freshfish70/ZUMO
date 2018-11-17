@@ -59,7 +59,7 @@ const int MAX_SPEED = 400;     // Max speed : Default 400
 // DURATIONS
 const int REVERSE_DURATION = 230; // How long it should drive backwards, time in milliseconds DEF: 400
 const int TURN_DURATION = 280;    // How many ms it shoukd spend to turn, time in milliseconds DEF : 300
-const int COUNTDOWN_TIME = 1;     // SECONDS
+const int COUNTDOWN_TIME = 5;     // SECONDS
 
 // DISTANCES
 
@@ -303,6 +303,7 @@ void setTimeout(unsigned long *timer, float time)
 /*
   Check if passed timer has timed out
 
+  @Param timer the timer to check for time out
   @Return bool true if expired
 */
 bool timerTimedOut(unsigned long timer)
@@ -416,10 +417,10 @@ void borderDetect()
 
 /*
   Check if we have enemy in sight
-  by getting the distance on the IR sensor
+  by getting the messured distance on the ultrasonic sensor
   and compare it to a limit
 
-  @Return bool true if enemy is in sight
+  @Return bool true if enemy is in sight else false
 */
 bool IsEnemyInSight()
 {
@@ -477,7 +478,7 @@ void waitForStartButtonAndCountDown(int seconds)
     delay(1000);
     buzzer.playNote(NOTE_C(5), 200, 20);
   }
-  // buzzer.playNote(NOTE_C(5), 1000, 20);
+  buzzer.playNote(NOTE_C(5), 1000, 20);
 }
 
 /*
