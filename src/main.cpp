@@ -62,12 +62,10 @@ const int TURN_DURATION = 280;    // How many ms it shoukd spend to turn, time i
 const int COUNTDOWN_TIME = 5;     // SECONDS
 
 // DISTANCES
-
-// 45 CM
 const int MAX_CHARGE_DISTANCE = 45; // The maximum distance in CM to the enemy that we should allow for a charge attack
 
 // DIGITAL OUTPUT
-const int LED_PIN = 13; // SIGNAL LED
+const int SIGNAL_LED_PIN = 13; // YELLOW SIGNAL LED ON ZUMO BOARD
 
 // ANALOG
 const int FRONT_IR_SENSOR = A0;
@@ -270,6 +268,7 @@ bool isOnEdge()
       sensor = RIGHT_SENSOR;
     }
     break;
+
   case BLACK_BORDER:
     if (leftSensorValue > QTR_THRESHOLD)
     {
@@ -291,6 +290,8 @@ bool isOnEdge()
 }
 /*
   Set a timers timeout time in milliseconds
+  by adding current arduino time with the passed time.
+  The timer will be set to a time ahead of current time.
 
   @Param *timer timer reference the timer to add time out on
   @Param time how much time to add
@@ -302,9 +303,10 @@ void setTimeout(unsigned long *timer, float time)
 
 /*
   Check if passed timer has timed out
+  by comparing it to current arduino time.
 
   @Param timer the timer to check for time out
-  @Return bool true if expired
+  @Return bool true if expired else false
 */
 bool timerTimedOut(unsigned long timer)
 {
@@ -328,7 +330,8 @@ void setLastOperationState(STATES lastState)
 }
 
 /*
-  Chane the opearation state to a new state
+  Change the opearation state to a new state
+  and save the old state.
 
   @Param newState the new state to change to
 */
@@ -360,7 +363,6 @@ bool isOperationStateChanged()
 */
 void turn(int speed, TURN_DIRECTION direction)
 {
-
   switch (direction)
   {
   case LEFT_DIRECTION:
@@ -379,7 +381,7 @@ void turn(int speed, TURN_DIRECTION direction)
 }
 
 /*
-  Checks which sensor triggered the edge check
+  Checks which sensor detected the edge border
   and runs a movement sequence based on which sensor triggered sensor
   and reset the triggered sensor
 */
@@ -470,9 +472,9 @@ void lockTarget(int speed, TURN_DIRECTION wasTurningDirection, int turnDuration 
 */
 void waitForStartButtonAndCountDown(int seconds)
 {
-  digitalWrite(LED_PIN, HIGH);
+  digitalWrite(SIGNAL_LED_PIN, HIGH);
   button.waitForButton();
-  digitalWrite(LED_PIN, LOW);
+  digitalWrite(SIGNAL_LED_PIN, LOW);
   for (int i = 0; i < seconds; i++)
   {
     delay(1000);
@@ -534,10 +536,9 @@ void setup()
   triggeredReflectSensor = NONE;  // Set initial triggered sensor
   currentOperationState = S_IDLE; // Sets initial state
 
-  pinMode(LED_PIN, OUTPUT);
-
   randomSeed(analogRead(0)); // Make sure our random seed is different each time we run
 
+  pinMode(SIGNAL_LED_PIN, OUTPUT);
   pinMode(ULTRASONIC_ECHO_PIN, INPUT);
   pinMode(ULTRASONIC_TRIGGER_PIN, OUTPUT);
 }
@@ -547,9 +548,7 @@ void loop()
 
   bool operationStateChanged = isOperationStateChanged();
 
-  /*
-
-  */
+  // Only runs when we're not in IDLE state
   if (currentOperationState != S_IDLE)
   {
     borderDetect();
@@ -568,11 +567,13 @@ void loop()
       setOperationState(S_SEARCHING);
     }
     break;
+    /*
+      Searching - Handles searching for enemy
+
+
+    */
   case S_SEARCHING:
 
-    /*
-      Set start values for this state
-    */
     if (operationStateChanged)
     {
       setTimeout(&noEnemyDetectionTimer, random(2200, 2700));
@@ -605,8 +606,13 @@ void loop()
     }
 
     break;
-  case S_DRIVING:
+  /*
+    Driving - When car is driving forward for moving
 
+    Handles forward driving when moving to different location
+    Checks if enemy in sight when driving
+  */
+  case S_DRIVING:
     if (timerTimedOut(drivingTimer))
     {
       setOperationState(S_SEARCHING);
@@ -623,11 +629,14 @@ void loop()
       setTimeout(&frontSensorReadTimer, 40);
     }
     break;
-  case S_CHARGING:
+  /*
+    Charging - When car has detected an enemy and is charging towards it
 
-    /*
-      Set start values for this state
-    */
+    Handles forward driving towards an enemy
+    Checks for enemy in sight so we can go back to searching
+    if there are no enemy in sight
+  */
+  case S_CHARGING:
     if (operationStateChanged)
     {
       setTimeout(&frontSensorReadTimer, 300);
