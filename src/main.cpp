@@ -493,6 +493,7 @@ void readSerial()
 
   if (Serial.available() > 0)
   {
+    setOperationState(S_IDLE);
 
     incomingByte = Serial.read();
     switch (incomingByte)
@@ -502,22 +503,17 @@ void readSerial()
       break;
     case 113: // Q
       stopMotors();
-      setOperationState(S_IDLE);
       break;
     case 119: // W
-      setOperationState(S_IDLE);
       driveForward(150);
       break;
     case 97: // A
-      setOperationState(S_IDLE);
       turnLeft(150);
       break;
     case 115: // S
-      setOperationState(S_IDLE);
       driveBackwards(150);
       break;
     case 100: // D
-      setOperationState(S_IDLE);
       turnRight(150);
       break;
     }
@@ -569,8 +565,8 @@ void loop()
     break;
     /*
       Searching - Handles searching for enemy
-
-
+  
+      
     */
   case S_SEARCHING:
 
@@ -589,7 +585,7 @@ void loop()
         driveForward(MAX_SPEED);
         setOperationState(S_CHARGING);
       }
-      setTimeout(&frontSensorReadTimer, 30);
+      setTimeout(&frontSensorReadTimer, 35);
     }
 
     if (timerTimedOut(searchTimer))
@@ -626,7 +622,7 @@ void loop()
         driveForward(MAX_SPEED);
         setOperationState(S_CHARGING);
       }
-      setTimeout(&frontSensorReadTimer, 40);
+      setTimeout(&frontSensorReadTimer, 35);
     }
     break;
   /*
@@ -652,7 +648,7 @@ void loop()
         setTimeout(&searchTimer, 1000);
         setOperationState(S_SEARCHING);
       }
-      setTimeout(&frontSensorReadTimer, 50);
+      setTimeout(&frontSensorReadTimer, 35);
     }
     break;
   }
