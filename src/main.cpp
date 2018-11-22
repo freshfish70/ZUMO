@@ -584,7 +584,6 @@ void loop()
     {
       if (IsEnemyInSight())
       {
-        // lockTarget(300, turningDirection, 40);
         driveForward(MAX_SPEED);
         setOperationState(S_CHARGING);
       }
@@ -621,7 +620,6 @@ void loop()
     {
       if (IsEnemyInSight())
       {
-        // lockTarget(300, turningDirection, 40);
         driveForward(MAX_SPEED);
         setOperationState(S_CHARGING);
       }
