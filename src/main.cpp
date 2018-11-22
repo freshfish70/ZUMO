@@ -45,7 +45,7 @@
 */
 #include <ZumoShield.h>
 
-const int DEBUGGING = true;
+const int DEBUGGING = false;
 
 // Lightreflection read threshhold; higher is darker.
 
@@ -573,7 +573,10 @@ void loop()
     if (operationStateChanged)
     {
       setTimeout(&noEnemyDetectionTimer, random(2200, 2700));
-      setTimeout(&searchTimer, 0);
+      if (lastOperationState == S_CHARGING)
+      {
+        setTimeout(&searchTimer, 0);
+      }
       setLastOperationState(S_SEARCHING);
     }
 
@@ -622,7 +625,7 @@ void loop()
         driveForward(MAX_SPEED);
         setOperationState(S_CHARGING);
       }
-      setTimeout(&frontSensorReadTimer, 35);
+      setTimeout(&frontSensorReadTimer, 40);
     }
     break;
   /*
@@ -644,11 +647,11 @@ void loop()
     {
       if (!IsEnemyInSight())
       {
-        turn(340, turningDirection);
+        turn(SEARCH_SPEED, RANDOM_DIRECTION);
         setTimeout(&searchTimer, 1000);
         setOperationState(S_SEARCHING);
       }
-      setTimeout(&frontSensorReadTimer, 35);
+      setTimeout(&frontSensorReadTimer, 40);
     }
     break;
   }
